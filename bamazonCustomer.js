@@ -1,8 +1,8 @@
 
-const mysql = require("mysql");
-const inquirer = require("inquirer");
+let mysql = require("mysql");
+let inquirer = require("inquirer");
 
-const connection = mysql.createConnection({
+let connection = mysql.createConnection({
 
     host: "localhost",
 
@@ -20,9 +20,11 @@ connection.connect(function (err) {
     connection.query("SELECT * FROM products", function (err, res) {
         if (err) throw (err);
         console.log("   Welcome to Bamazon! Please take a look at our products! ");
-        console.log("==============================================================");
-        for (var i = 0; i < res.length; i++) {
-            console.log("ID: " + res[i].item_id + " | " + res[i].product_name + " | " + "PRICE: " + res[i].price + " | " + "QTY: " + res[i].quantity);
+        console.log("===========================================================");
+        for (let i = 0; i < res.length; i++) {
+            console.log("ID: " + res[i].item_id + " | " + res[i].product_name + " | " + "PRICE: " + res[i].price);
+            console.log("===========================================================");
+
         };
         start(res);
     })
@@ -30,7 +32,7 @@ connection.connect(function (err) {
 
 
 //Asks the user what they would like to do 
-let start = function () {
+function start() {
     inquirer
         .prompt({
             name: "welcome",
@@ -46,7 +48,7 @@ let start = function () {
             } else {
                 console.log("Thank you for visiting Bamazon! Have a great day!")
                 connection.end();
-                process.exit();
+        
 
             }
         });
@@ -58,58 +60,70 @@ let start = function () {
 
 function searchProducts() {
     inquirer
-        .prompt({
-            name: "itemId",
-            type: "input",
-            message: "Please enter the ID number of your desired item",
-        },
-        {
-            name: "requestedQty",
-            type: "input",
-            message: "Please enter the desired quantity",
-            //ensures user input is valid 
-            validate: function (value) {
-                if (isNaN(value) === false) {
-                    return true;
+        .prompt([
+            {
+                name: "itemId",
+                type: "input",
+                message: "Please enter the ID number of the product you would like to purchase."
+            },
+            {
+                name: "requestedQty",
+                type: "input",
+                message: "Please enter the quantity",
+                //ensures user input is valid 
+                validate: function (value) {
+                    if (isNaN(value) === false) {
+                        return true;
+                    }
+                    return false;
                 }
-                return false;
+
             }
-        
-        
-    }) .then(function (answer) {
-        let productId = parseInt(answer.itemId);
-        let productQuantity = parseInt(answer.requestedQty);
-
-        //query searches database
-        var query = "SELECT item_id, product_name, quantity, price FROM products WHERE ?";
-        //Lets user know if there is not enough of the product in stock
-            connection.query(query, { item_id: productId }, function (err, res) {
-                if (res[0].quantity < productQuantity) {
-                    console.log("We're sorry! Not enough to fulfill order.");
-                    start(res);
-                } else 
-                console.log(" Bamazon has " + res[0].quantity + " of this item in stock. Adding items to your order.")
-              updateInventory();
-
-            
-
-            })
-            })
-
-            function updateInventory() {
-                
-            }
+        ]).then(function (answer) {
 
 
 
+            connection.query(
+                "SELECT * FROM products WHERE ?", { item_id: answer.itemId }, function (err, res) {
+                    if (err) throw err;
+                    for (let i = 0; i < res.length; i++) {
+                        if (res[i].stock_quantity > answer.requestedQty) {
+                            let totalPrice = answer.requestedQty * res[i].price;
+
+                            console.log("Added item(s) to order!")
+                            console.log(
+                                "\nOrder Invoice:" +
+                                "\n--------------------------" +
+                                "\nItem(s): " + res[i].product_name +
+                                "\nQuantity: " + answer.requestedQty +
+                                "\nOrder Total: $" + totalPrice +
+                                "\n==========================");
+
+                            connection.query(
+                                "UPDATE products SET ? WHERE ?",
+                                [
+                                    { stock_quantity: res[i].stock_quantity - answer.requestedQty },
+                                    { item_id: answer.itemId }
+                                ],
+                                function (err, res) {
+                                    if (err) throw err;
+
+                                }
+                            )
 
 
 
+                        } else
 
-   
-   
-         }
+                            console.log("We're sorry! Not enough to fulfill order. Only " + res[i].stock_quantity + " item(s) in stock. Please start your order again.");
+                        start();
 
-         
-            
-        
+
+
+                    };
+                });
+        }
+        )
+
+};
+
