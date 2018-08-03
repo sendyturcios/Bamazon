@@ -82,6 +82,7 @@ function searchProducts() {
         ]).then(function (answer) {
 
 
+            //If there are enough products in stock, inventory is deducted on Mysql and item added to order
 
             connection.query(
                 "SELECT * FROM products WHERE ?", { item_id: answer.itemId }, function (err, res) {
@@ -90,15 +91,18 @@ function searchProducts() {
                         if (res[i].stock_quantity > answer.requestedQty) {
                             let totalPrice = answer.requestedQty * res[i].price;
 
+                            //Customer receipt of purchase
                             console.log("Added item(s) to order!")
                             console.log(
                                 "\nOrder Invoice:" +
-                                "\n--------------------------" +
                                 "\nItem(s): " + res[i].product_name +
                                 "\nQuantity: " + answer.requestedQty +
+                                "\n--------------------------" +
                                 "\nOrder Total: $" + totalPrice +
                                 "\n==========================");
 
+
+                            //Update inventory list    
                             connection.query(
                                 "UPDATE products SET ? WHERE ?",
                                 [
@@ -114,7 +118,8 @@ function searchProducts() {
 
 
                         } else
-
+                            //If not enough in stock, message lets customer know how many remaining and they are
+                            //prompted to begin again to input different quantity 
                             console.log("We're sorry! Not enough to fulfill order. Only " + res[i].stock_quantity + " item(s) in stock. Please start your order again.");
                         start();
 
